@@ -3,536 +3,1240 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calculadora de Costes de Impresión 3D</title>
+    <meta name="description" content="Calcula el coste de tus impresiones 3D: filamento, electricidad y amortización de impresora.">
+    <title>Calculadora 3D — Costes de Impresión</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
     <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:            #0d1117;
+            --surface:       #161b22;
+            --surface-2:     #1c2230;
+            --border:        #2d3748;
+            --border-hover:  #4a5568;
+            --green-300:     #86efac;
+            --green-400:     #4ade80;
+            --green-500:     #22c55e;
+            --green-700:     #15803d;
+            --green-800:     #166534;
+            --green-900:     #052e16;
+            --yellow:        #fbbf24;
+            --red:           #ef4444;
+            --red-bg:        #7f1d1d;
+            --text-primary:  #e2e8f0;
+            --text-secondary:#94a3b8;
+            --text-accent:   #86efac;
+            --shadow-green:  rgba(34, 197, 94, 0.2);
+        }
+
         body {
-            font-family: monospace;
-            background: linear-gradient(135deg, #0a0a0a, #1a2a3a);
-            color: #4ade80;
-            margin: 0;
-            padding: 2rem;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
             min-height: 100vh;
-            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem 1.25rem 3rem;
         }
 
-        .container {
-            background-color: #1f2937;
-            border-radius: 1rem;
-            padding: 2rem;
-            max-width: 1000px;
+        /* ── Toast ─────────────────────────────────────────── */
+        #toastContainer {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            pointer-events: none;
+        }
+
+        .toast {
+            padding: 0.7rem 1.1rem;
+            border-radius: 0.5rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            max-width: 300px;
+            opacity: 0;
+            transform: translateX(0.75rem);
+            transition: opacity 0.25s, transform 0.25s;
+            pointer-events: auto;
+        }
+
+        .toast.show { opacity: 1; transform: translateX(0); }
+
+        .toast-error   { background: var(--red-bg); color: #fca5a5; border: 1px solid var(--red); }
+        .toast-success { background: var(--green-900); color: var(--green-300); border: 1px solid var(--green-700); }
+        .toast-info    { background: #1e293b; color: #93c5fd; border: 1px solid #3b82f6; }
+
+        /* ── Layout ─────────────────────────────────────────── */
+        .wrapper {
             width: 100%;
-            box-shadow: 0 0 30px rgba(34, 197, 94, 0.3);
-            animation: fadeIn 1s ease-in-out;
+            max-width: 1040px;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
+        header {
+            text-align: center;
+            margin-bottom: 1.75rem;
+        }
+
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.65rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .logo-icon {
+            width: 2.4rem;
+            height: 2.4rem;
+            background: linear-gradient(135deg, var(--green-800), var(--green-500));
+            border-radius: 0.6rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            box-shadow: 0 0 18px var(--shadow-green);
         }
 
         h1 {
-            color: #86efac;
-            text-align: center;
-            margin-bottom: 2rem;
-            font-size: 2rem;
-            text-shadow: 0 0 10px rgba(134, 239, 172, 0.5);
-            animation: glow 2s infinite alternate;
+            font-size: 1.65rem;
+            font-weight: 700;
+            color: var(--text-accent);
+            letter-spacing: -0.025em;
         }
 
-        @keyframes glow {
-            from { text-shadow: 0 0 5px rgba(134, 239, 172, 0.5); }
-            to { text-shadow: 0 0 15px rgba(134, 239, 172, 0.8); }
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        .card {
+            background: var(--surface);
+            border-radius: 1rem;
+            padding: 2rem;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+            animation: fadeUp 0.4s ease-out;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
         }
 
         .grid {
             display: grid;
-            gap: 2rem;
             grid-template-columns: 1fr 1fr;
+            gap: 2rem;
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 720px) {
             .grid { grid-template-columns: 1fr; }
+            body  { padding: 1rem 1rem 2.5rem; }
+        }
+
+        /* ── Section label ──────────────────────────────────── */
+        .section-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+            padding-bottom: 0.6rem;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 1.25rem;
+        }
+
+        /* ── Form ───────────────────────────────────────────── */
+        .form-col {
+            display: flex;
+            flex-direction: column;
+            gap: 1.2rem;
         }
 
         .input-group {
             display: flex;
             flex-direction: column;
-            gap: 0.5rem;
-            transition: transform 0.3s;
+            gap: 0.35rem;
         }
 
-        .input-group:hover {
-            transform: scale(1.02);
+        .label-row {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
         }
 
         label {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-primary);
         }
 
-        label.required::after {
-            content: ' *';
-            color: #ef4444;
+        .req { color: var(--red); font-size: 0.8rem; }
+
+        .opt-tag {
+            font-size: 0.68rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--yellow);
+            background: rgba(251, 191, 36, 0.1);
+            padding: 0.1em 0.45em;
+            border-radius: 0.25rem;
         }
 
-        label.optional {
-            color: #fbbf24;
+        .tip {
+            position: relative;
+            cursor: help;
+            color: var(--text-secondary);
+            font-size: 0.72rem;
+            width: 1rem;
+            height: 1rem;
+            background: var(--border);
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+            user-select: none;
         }
+
+        .tip::after {
+            content: attr(data-tip);
+            position: absolute;
+            bottom: calc(100% + 7px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #0f172a;
+            color: var(--text-primary);
+            font-size: 0.78rem;
+            font-weight: 400;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.4rem;
+            white-space: pre-wrap;
+            text-align: left;
+            min-width: 180px;
+            max-width: 240px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.18s;
+            z-index: 200;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+        }
+
+        .tip:hover::after { opacity: 1; }
+
+        .err-msg {
+            font-size: 0.75rem;
+            color: var(--red);
+            display: none;
+        }
+
+        .input-group.has-error .err-msg { display: block; }
 
         input:not([type="range"]), select {
-            padding: 0.75rem;
-            background-color: #1e293b;
-            color: #4ade80;
-            border: 1px solid #047857;
+            width: 100%;
+            padding: 0.6rem 0.75rem;
+            background: var(--surface-2);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
             border-radius: 0.5rem;
-            font-family: monospace;
-            transition: border-color 0.3s, box-shadow 0.3s;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.875rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
 
-        input:not([type="range"]):focus, select:focus {
-            border-color: #22c55e;
-            box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+        input:not([type="range"]):focus,
+        select:focus {
+            border-color: var(--green-500);
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
             outline: none;
         }
 
-        input:not([type="range"]).error, select.error {
-            border-color: #b91c1c;
-            box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+        .input-group.has-error input:not([type="range"]),
+        .input-group.has-error select {
+            border-color: var(--red);
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
         }
 
-        .input-flex {
-            display: flex;
-            gap: 0.5rem;
-        }
+        select option { background: var(--surface-2); }
 
-        button {
-            padding: 0.75rem;
-            background-color: #047857;
-            color: white;
+        .input-flex { display: flex; gap: 0.5rem; }
+        .input-flex input { flex: 1; }
+
+        /* ── Buttons ─────────────────────────────────────────── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.6rem 1rem;
             border: none;
             border-radius: 0.5rem;
             cursor: pointer;
-            font-family: monospace;
-            transition: transform 0.2s, background-color 0.3s;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: background-color 0.2s, box-shadow 0.2s, transform 0.1s;
         }
 
-        button:hover {
-            background-color: #059669;
-            transform: scale(1.05);
+        .btn:active { transform: scale(0.96); }
+
+        .btn-primary {
+            background: var(--green-700);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: var(--green-500);
+            box-shadow: 0 0 14px var(--shadow-green);
         }
 
-        button:active {
-            transform: scale(0.95);
+        .btn-secondary {
+            background: var(--surface-2);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
         }
+        .btn-secondary:hover { background: var(--border); }
 
-        .dropdown {
-            position: absolute;
-            background-color: #1e293b;
-            border: 1px solid #047857;
-            max-height: 250px;
-            overflow-y: auto;
-            width: 100%;
-            z-index: 10;
-            border-radius: 0.5rem;
-            animation: slideDown 0.3s ease-out;
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            font-size: 0.8rem;
+            padding: 0.55rem 0.85rem;
         }
+        .btn-ghost:hover { color: var(--text-primary); background: var(--surface-2); }
 
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
+        .btn-unit {
+            background: var(--green-800);
+            color: var(--green-300);
+            border: 1px solid var(--green-700);
+            min-width: 82px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            padding: 0.6rem 0.75rem;
         }
+        .btn-unit:hover { background: var(--green-700); }
 
-        .dropdown-item {
-            padding: 0.75rem;
-            cursor: pointer;
+        .btn-row {
             display: flex;
-            align-items: center;
-            gap: 1rem;
-            transition: background-color 0.2s;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+            margin-top: 0.25rem;
         }
 
-        .dropdown-item:hover {
-            background-color: #064e3b;
-        }
-
-        .dropdown-item img {
-            width: 40px;
-            height: 40px;
-            object-fit: cover;
-            border-radius: 4px;
-        }
-
-        .results {
-            padding: 1.5rem;
-            background-color: #1e293b;
-            border-radius: 0.5rem;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .results h2 {
-            color: #86efac;
-            font-size: 1.25rem;
-            margin-bottom: 1rem;
-        }
-
-        .space-y {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .value {
-            color: #bbf7d0;
-            transition: color 0.3s;
-        }
-
-        .value.updated {
-            color: #22c55e;
-            animation: pulse 0.5s;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
-        }
-
-        .warning {
-            color: #fbbf24;
-        }
-
-        .printer-image {
-            width: 100%;
-            max-width: 200px;
-            height: auto;
-            margin-top: 1rem;
-            border-radius: 0.5rem;
-            box-shadow: 0 0 15px rgba(34, 197, 94, 0.3);
-            animation: imageFadeIn 0.5s ease-in-out;
-        }
-
-        @keyframes imageFadeIn {
-            from { opacity: 0; transform: scale(0.9); }
-            to { opacity: 1; transform: scale(1); }
-        }
+        /* ── Slider ──────────────────────────────────────────── */
+        .slider-wrap { display: flex; align-items: center; gap: 0.75rem; }
 
         input[type="range"] {
             -webkit-appearance: none;
-            width: 100%;
-            height: 8px;
-            background: #1e293b;
-            border: 1px solid #047857;
-            border-radius: 5px;
+            flex: 1;
+            height: 6px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 4px;
             outline: none;
-            padding: 0;
-            margin: 0;
-            transition: border-color 0.3s;
+            cursor: pointer;
         }
 
         input[type="range"]:hover,
         input[type="range"]:focus {
-            border-color: #22c55e;
-            box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+            border-color: var(--green-500);
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
         }
 
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 20px;
-            height: 20px;
-            background: #22c55e;
+            width: 17px;
+            height: 17px;
+            background: var(--green-500);
             border-radius: 50%;
             cursor: pointer;
-            box-shadow: 0 0 5px rgba(34, 197, 94, 0.5);
+            box-shadow: 0 0 6px var(--shadow-green);
         }
 
         input[type="range"]::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
-            background: #22c55e;
+            width: 17px;
+            height: 17px;
+            background: var(--green-500);
             border-radius: 50%;
             cursor: pointer;
-            box-shadow: 0 0 5px rgba(34, 197, 94, 0.5);
             border: none;
         }
 
-        .slider-container {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .slider-value {
-            color: #bbf7d0;
-            font-size: 0.9rem;
-            min-width: 40px;
+        .slider-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--green-400);
+            min-width: 3.25rem;
             text-align: right;
         }
 
-        .button-group {
+        /* ── Printer search ──────────────────────────────────── */
+        .search-wrap { position: relative; }
+
+        .dropdown {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            max-height: 230px;
+            overflow-y: auto;
+            z-index: 100;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.55);
+            animation: slideDown 0.15s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-5px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .dropdown::-webkit-scrollbar { width: 5px; }
+        .dropdown::-webkit-scrollbar-track { background: var(--surface-2); }
+        .dropdown::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        .dd-item {
             display: flex;
-            gap: 1rem;
-            margin-top: 1rem;
+            align-items: center;
+            gap: 0.7rem;
+            padding: 0.55rem 0.75rem;
+            cursor: pointer;
+            font-size: 0.855rem;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s;
+        }
+
+        .dd-item:last-child { border-bottom: none; }
+        .dd-item:hover { background: var(--surface-2); }
+
+        .dd-item img {
+            width: 34px;
+            height: 34px;
+            object-fit: contain;
+            background: #fff;
+            border-radius: 4px;
+            padding: 2px;
+            flex-shrink: 0;
+        }
+
+        .dd-item-name { font-weight: 500; color: var(--text-primary); }
+        .dd-item-meta { font-size: 0.74rem; color: var(--text-secondary); margin-top: 1px; }
+
+        /* ── Printer chip ────────────────────────────────────── */
+        .printer-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            background: var(--green-900);
+            border: 1px solid var(--green-800);
+            color: var(--green-300);
+            border-radius: 0.375rem;
+            padding: 0.3rem 0.55rem;
+            font-size: 0.78rem;
+            font-weight: 500;
+            margin-top: 0.35rem;
+        }
+
+        .chip-clear {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--green-400);
+            font-size: 1rem;
+            line-height: 1;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            transition: color 0.2s;
+        }
+
+        .chip-clear:hover { color: var(--red); }
+
+        /* ── Results panel ───────────────────────────────────── */
+        .results-panel {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.1rem;
+        }
+
+        .results-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .results-header h2 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-accent);
+        }
+
+        .res-badge {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 0.3rem;
+            padding: 0.2em 0.5em;
+        }
+
+        .res-badge.active {
+            color: var(--green-400);
+            background: var(--green-900);
+            border-color: var(--green-800);
+        }
+
+        /* Printer preview card */
+        .printer-preview {
+            display: flex;
+            align-items: center;
+            gap: 0.9rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+        }
+
+        .preview-img-wrap {
+            width: 60px;
+            height: 60px;
+            flex-shrink: 0;
+            background: #fff;
+            border-radius: 0.375rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .preview-img-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            padding: 3px;
+        }
+
+        .preview-placeholder {
+            font-size: 1.6rem;
+            color: var(--text-secondary);
+        }
+
+        .preview-info { display: flex; flex-direction: column; gap: 0.2rem; }
+        .preview-name { font-weight: 600; font-size: 0.875rem; color: var(--text-primary); }
+        .preview-meta { font-size: 0.775rem; color: var(--text-secondary); }
+
+        /* Cost items */
+        .cost-list { display: flex; flex-direction: column; gap: 0.55rem; }
+
+        .cost-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.865rem;
+        }
+
+        .cost-label {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            color: var(--text-secondary);
+        }
+
+        .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .dot-f { background: #60a5fa; }
+        .dot-e { background: #fbbf24; }
+        .dot-p { background: #a78bfa; }
+
+        .cost-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            color: var(--green-300);
+            transition: color 0.25s;
+        }
+
+        .cost-val.updated {
+            color: var(--green-500);
+            animation: pop 0.35s ease-out;
+        }
+
+        @keyframes pop {
+            0%   { transform: scale(1); }
+            45%  { transform: scale(1.09); }
+            100% { transform: scale(1); }
+        }
+
+        /* Breakdown bar */
+        .breakdown-bar {
+            height: 7px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            display: flex;
+        }
+
+        .bar-seg { height: 100%; transition: width 0.55s ease; }
+        .bar-f { background: #60a5fa; }
+        .bar-e { background: #fbbf24; }
+        .bar-p { background: #a78bfa; }
+
+        hr.divider { border: none; border-top: 1px solid var(--border); }
+
+        /* Total */
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .total-label { font-weight: 600; color: var(--text-primary); }
+
+        .total-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            color: var(--green-300);
+        }
+
+        .total-val.updated {
+            color: var(--green-500);
+            animation: pop 0.35s ease-out;
+        }
+
+        /* Sale price */
+        .sale-row {
+            background: var(--green-900);
+            border: 1px solid var(--green-800);
+            border-radius: 0.5rem;
+            padding: 0.8rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sale-label { font-weight: 600; color: var(--green-300); font-size: 0.925rem; }
+
+        .sale-price-wrap { display: flex; align-items: center; gap: 0.5rem; }
+
+        .sale-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            color: var(--green-400);
+            font-size: 1.2rem;
+            transition: color 0.25s;
+        }
+
+        .sale-val.updated {
+            color: #86efac;
+            animation: pop 0.35s ease-out;
+        }
+
+        .btn-copy {
+            background: rgba(34, 197, 94, 0.12);
+            border: 1px solid var(--green-800);
+            color: var(--green-400);
+            border-radius: 0.35rem;
+            padding: 0.28rem 0.55rem;
+            cursor: pointer;
+            font-size: 0.73rem;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            transition: background 0.2s;
+        }
+
+        .btn-copy:hover { background: rgba(34, 197, 94, 0.22); }
+
+        /* ── Footer ──────────────────────────────────────────── */
+        footer {
+            margin-top: 1.5rem;
+            text-align: center;
+            font-size: 0.775rem;
+            color: var(--text-secondary);
+        }
+
+        footer a {
+            color: var(--green-400);
+            text-decoration: none;
+        }
+
+        footer a:hover { text-decoration: underline; }
+
+        /* ── Keyboard hint ───────────────────────────────────── */
+        .kbd-hint {
+            font-size: 0.73rem;
+            color: var(--text-secondary);
+            margin-top: 0.3rem;
+        }
+
+        .kbd {
+            display: inline-block;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 0.25rem;
+            padding: 0.05em 0.35em;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Calculadora de Costes de Impresión 3D</h1>
-        <div class="grid">
-            <div>
-                <div class="input-group">
-                    <label class="required" for="printerSearch">Impresora 3D</label>
-                    <div style="position: relative;">
-                        <input type="text" id="printerSearch" placeholder="Buscar impresora">
-                        <div id="printerDropdown" class="dropdown" style="display: none;"></div>
-                    </div>
-                </div>
+    <div id="toastContainer"></div>
 
-                <div class="input-group">
-                    <label class="required" for="filamentCostPerKg">Coste de Filamento (€/kg)</label>
-                    <input type="number" id="filamentCostPerKg" step="0.01">
-                </div>
-
-                <div class="input-group">
-                    <label class="required" for="filamentConsumedGrams">Gramos de Filamento</label>
-                    <input type="number" id="filamentConsumedGrams" step="1">
-                </div>
-
-                <div class="input-group">
-                    <label class="required" for="printTime">Tiempo de Impresión</label>
-                    <div class="input-flex">
-                        <input type="number" id="printTime" step="0.01">
-                        <button id="timeUnitBtn">horas</button>
-                    </div>
-                </div>
-
-                <div class="input-group">
-                    <label class="required" for="selectedRate">Tarifa Eléctrica</label>
-                    <select id="selectedRate">
-                        <option value="">Selecciona Tarifa</option>
-                        <option value="0.35">Punta (10-14 y 18-22) - 0.35€/kWh</option>
-                        <option value="0.25">Llano (08-10, 14-18, 22-24) - 0.25€/kWh</option>
-                        <option value="0.15">Valle (00-08) - 0.15€/kWh</option>
-                    </select>
-                </div>
-
-                <div class="input-group">
-                    <label class="optional" for="marginProfit">Margen de Beneficio (%)</label>
-                    <div class="slider-container">
-                        <input type="range" id="marginProfit" min="0" max="1000" value="30">
-                        <span class="slider-value" id="marginProfitValue">30%</span>
-                    </div>
-                </div>
-
-                <div class="button-group">
-                    <button id="calculateBtn">Calcular Costes</button>
-                    <button id="roundBtn">Redondear Precio</button>
-                </div>
+    <div class="wrapper">
+        <header>
+            <div class="logo">
+                <div class="logo-icon">🖨</div>
+                <h1>Calculadora 3D</h1>
             </div>
+            <p class="subtitle">Calcula el coste de producción de tus impresiones 3D</p>
+        </header>
 
-            <div class="results">
-                <h2>Resultados</h2>
-                <div class="space-y">
-                    <p>Impresora: <span id="selectedPrinterInfo" class="warning">Ninguna seleccionada</span></p>
-                    <div id="printerImageContainer"></div>
-                    <p>Coste de Filamento: <span id="filamentCostResult" class="value">0€</span></p>
-                    <p>Coste de Electricidad: <span id="electricityCostResult" class="value">0€</span></p>
-                    <p>Coste de Impresora (0.25%): <span id="printerCostResult" class="value">0€</span></p>
-                    <p>Coste Total: <span id="totalCostResult" class="value">0€</span></p>
-                    <p>Precio de Venta: <span id="salePriceResult" class="value">0€</span></p>
+        <div class="card">
+            <div class="grid">
+
+                <!-- ── Form column ─────────────────────────── -->
+                <div class="form-col">
+                    <p class="section-label">Parámetros de impresión</p>
+
+                    <!-- Printer search -->
+                    <div class="input-group" id="printerGroup">
+                        <div class="label-row">
+                            <label for="printerSearch">Impresora 3D</label>
+                            <span class="req">*</span>
+                            <span class="tip" data-tip="Selecciona tu impresora para calcular&#10;su consumo eléctrico y amortización.">?</span>
+                        </div>
+                        <div class="search-wrap">
+                            <input type="text" id="printerSearch" placeholder="Buscar impresora…" autocomplete="off">
+                            <div id="printerDropdown" class="dropdown" style="display:none;"></div>
+                        </div>
+                        <div id="printerChip" style="display:none;"></div>
+                        <span class="err-msg">Selecciona una impresora de la lista.</span>
+                    </div>
+
+                    <!-- Filament cost -->
+                    <div class="input-group" id="filamentCostGroup">
+                        <div class="label-row">
+                            <label for="filamentCostPerKg">Coste de Filamento (€/kg)</label>
+                            <span class="req">*</span>
+                            <span class="tip" data-tip="Precio por kilogramo de filamento en €.\nEj: PLA básico ≈ 20 €/kg.">?</span>
+                        </div>
+                        <input type="number" id="filamentCostPerKg" step="0.01" min="0" placeholder="ej: 22.99">
+                        <span class="err-msg">Introduce un valor positivo.</span>
+                    </div>
+
+                    <!-- Filament grams -->
+                    <div class="input-group" id="filamentGramsGroup">
+                        <div class="label-row">
+                            <label for="filamentConsumedGrams">Filamento Consumido (g)</label>
+                            <span class="req">*</span>
+                            <span class="tip" data-tip="Gramos de filamento utilizados en la pieza.&#10;Tu slicer lo indica al laminar.">?</span>
+                        </div>
+                        <input type="number" id="filamentConsumedGrams" step="1" min="0" placeholder="ej: 45">
+                        <span class="err-msg">Introduce un valor positivo.</span>
+                    </div>
+
+                    <!-- Print time -->
+                    <div class="input-group" id="printTimeGroup">
+                        <div class="label-row">
+                            <label for="printTime">Tiempo de Impresión</label>
+                            <span class="req">*</span>
+                            <span class="tip" data-tip="Duración total de la impresión.&#10;Usa el botón para cambiar entre horas y minutos.">?</span>
+                        </div>
+                        <div class="input-flex">
+                            <input type="number" id="printTime" step="0.01" min="0" placeholder="ej: 3.5">
+                            <button class="btn btn-unit" id="timeUnitBtn">horas</button>
+                        </div>
+                        <span class="err-msg">Introduce un valor positivo.</span>
+                    </div>
+
+                    <!-- Electricity rate -->
+                    <div class="input-group" id="rateGroup">
+                        <div class="label-row">
+                            <label for="selectedRate">Tarifa Eléctrica</label>
+                            <span class="req">*</span>
+                            <span class="tip" data-tip="Precio de la electricidad (€/kWh).&#10;Usa la tarifa del horario en que imprimirás.&#10;Elige «Personalizada» para introducir la tuya.">?</span>
+                        </div>
+                        <select id="selectedRate">
+                            <option value="">Selecciona tarifa…</option>
+                            <option value="0.35">Punta (10–14 y 18–22 h) — 0.35 €/kWh</option>
+                            <option value="0.25">Llano (08–10, 14–18, 22–24 h) — 0.25 €/kWh</option>
+                            <option value="0.15">Valle (00–08 h) — 0.15 €/kWh</option>
+                            <option value="custom">Tarifa personalizada…</option>
+                        </select>
+                        <input type="number" id="customRate" step="0.001" min="0"
+                               placeholder="Introduce €/kWh" style="display:none; margin-top:0.4rem;">
+                        <span class="err-msg">Selecciona o introduce una tarifa.</span>
+                    </div>
+
+                    <!-- Margin -->
+                    <div class="input-group">
+                        <div class="label-row">
+                            <label for="marginProfit">Margen de Beneficio</label>
+                            <span class="opt-tag">Opcional</span>
+                            <span class="tip" data-tip="Porcentaje de beneficio aplicado sobre&#10;el coste total de producción.">?</span>
+                        </div>
+                        <div class="slider-wrap">
+                            <input type="range" id="marginProfit" min="0" max="1000" value="30">
+                            <span class="slider-val" id="marginProfitValue">30%</span>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="btn-row">
+                        <button class="btn btn-primary" id="calculateBtn">▶ Calcular</button>
+                        <button class="btn btn-secondary" id="roundBtn">≈ Redondear</button>
+                        <button class="btn btn-ghost" id="resetBtn">↺ Limpiar</button>
+                    </div>
+                    <p class="kbd-hint">Pulsa <kbd class="kbd">Enter</kbd> desde cualquier campo para calcular.</p>
                 </div>
+
+                <!-- ── Results column ───────────────────────── -->
+                <div class="results-panel">
+                    <div class="results-header">
+                        <h2>Resultados</h2>
+                        <span class="res-badge" id="resBadge">Sin impresora</span>
+                    </div>
+
+                    <!-- Printer preview -->
+                    <div class="printer-preview" id="printerPreview">
+                        <div class="preview-img-wrap" id="previewImgWrap">
+                            <span class="preview-placeholder">🖨</span>
+                        </div>
+                        <div class="preview-info">
+                            <span class="preview-name" id="previewName">Ninguna seleccionada</span>
+                            <span class="preview-meta" id="previewMeta">Selecciona una impresora para comenzar</span>
+                        </div>
+                    </div>
+
+                    <!-- Cost breakdown -->
+                    <div class="cost-list">
+                        <div class="cost-row">
+                            <span class="cost-label"><span class="dot dot-f"></span>Filamento</span>
+                            <span class="cost-val" id="filamentCostResult">0,00 €</span>
+                        </div>
+                        <div class="cost-row">
+                            <span class="cost-label"><span class="dot dot-e"></span>Electricidad</span>
+                            <span class="cost-val" id="electricityCostResult">0,00 €</span>
+                        </div>
+                        <div class="cost-row">
+                            <span class="cost-label">
+                                <span class="dot dot-p"></span>Amortización
+                                <span class="tip" data-tip="0,25% del precio de la impresora&#10;por impresión para amortizar su coste.">?</span>
+                            </span>
+                            <span class="cost-val" id="printerCostResult">0,00 €</span>
+                        </div>
+                    </div>
+
+                    <!-- Breakdown bar -->
+                    <div class="breakdown-bar">
+                        <div class="bar-seg bar-f" id="barF" style="width:0%"></div>
+                        <div class="bar-seg bar-e" id="barE" style="width:0%"></div>
+                        <div class="bar-seg bar-p" id="barP" style="width:0%"></div>
+                    </div>
+
+                    <hr class="divider">
+
+                    <!-- Total -->
+                    <div class="total-row">
+                        <span class="total-label">Coste de producción</span>
+                        <span class="total-val cost-val" id="totalCostResult">0,00 €</span>
+                    </div>
+
+                    <!-- Sale price -->
+                    <div class="sale-row">
+                        <span class="sale-label">Precio de venta</span>
+                        <div class="sale-price-wrap">
+                            <span class="sale-val" id="salePriceResult">0,00 €</span>
+                            <button class="btn-copy" id="copyBtn" title="Copiar al portapapeles">Copiar</button>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
+
+        <footer>
+            <p>Calculadora de Costes de Impresión 3D ·
+                <a href="https://github.com/artrex17/calculadora-de-costes-de-impresiones-3d"
+                   target="_blank" rel="noopener noreferrer">GitHub</a>
+            </p>
+        </footer>
     </div>
 
     <script>
         const printerDatabase = [
-            { marca: 'Prusa', modelo: 'MK3S+', consumo: 0.12, coste: 799, image: 'https://www.prusa3d.com/content/images/product/mk3splus_kit_600x600.png' },
-            { marca: 'Prusa', modelo: 'Mini+', consumo: 0.08, coste: 459, image: 'https://www.prusa3d.com/content/images/product/mini_plus_600x600.png' },
-            { marca: 'Prusa', modelo: 'XL', consumo: 0.25, coste: 1999, image: 'https://www.prusa3d.com/content/images/product/xl_600x600.png' },
-            { marca: 'Creality', modelo: 'Ender 3 V2', consumo: 0.15, coste: 229, image: 'https://cdn.shopify.com/s/files/1/0557/7973/1860/products/Ender3V2_600x.png' },
-            { marca: 'Creality', modelo: 'CR-10 V3', consumo: 0.20, coste: 499, image: 'https://www.creality.com/cdn/shop/products/CR-10_V3_600x600.png' },
-            { marca: 'Creality', modelo: 'Ender 3 S1', consumo: 0.18, coste: 349, image: 'https://www.creality.com/cdn/shop/products/Ender-3S1_600x600.png' },
-            { marca: 'Creality', modelo: 'K1', consumo: 0.22, coste: 559, image: 'https://www.creality.com/cdn/shop/products/K1_600x600.png' },
-            { marca: 'Creality', modelo: 'K1 Max', consumo: 0.30, coste: 799, image: 'https://www.creality.com/cdn/shop/products/K1_Max_600x600.png' },
-            { marca: 'Anycubic', modelo: 'Photon Mono X', consumo: 0.20, coste: 499, image: 'https://www.anycubic.com/cdn/shop/products/Photon-Mono-X_600x600.png' },
-            { marca: 'Anycubic', modelo: 'Vyper', consumo: 0.17, coste: 369, image: 'https://www.anycubic.com/cdn/shop/products/Vyper_600x600.png' },
-            { marca: 'Anycubic', modelo: 'Kobra 2 Pro', consumo: 0.19, coste: 429, image: 'https://www.anycubic.com/cdn/shop/products/Kobra-2-Pro_600x600.png' },
-            { marca: 'Elegoo', modelo: 'Mars 3', consumo: 0.18, coste: 299, image: 'https://www.elegoo.com/cdn/shop/products/Mars-3_600x600.png' },
-            { marca: 'Elegoo', modelo: 'Neptune 3 Pro', consumo: 0.16, coste: 329, image: 'https://www.elegoo.com/cdn/shop/products/Neptune-3-Pro_600x600.png' },
-            { marca: 'Ultimaker', modelo: 'S5', consumo: 0.35, coste: 5999, image: 'https://www.ultimaker.com/cdn/shop/products/S5_600x600.png' },
-            { marca: 'Ultimaker', modelo: 'S3', consumo: 0.30, coste: 3999, image: 'https://www.ultimaker.com/cdn/shop/products/S3_600x600.png' },
-            { marca: 'Formlabs', modelo: 'Form 3', consumo: 0.25, coste: 3499, image: 'https://www.formlabs.com/cdn/shop/products/Form-3_600x600.png' },
-            { marca: 'Formlabs', modelo: 'Form 3L', consumo: 0.35, coste: 9999, image: 'https://www.formlabs.com/cdn/shop/products/Form-3L_600x600.png' },
-            { marca: 'Artillery', modelo: 'Genius Pro', consumo: 0.16, coste: 299, image: 'https://www.artillery3d.com/cdn/shop/products/Genius-Pro_600x600.png' },
-            { marca: 'Artillery', modelo: 'Sidewinder X2', consumo: 0.22, coste: 399, image: 'https://www.artillery3d.com/cdn/shop/products/Sidewinder-X2_600x600.png' },
-            { marca: 'Raise3D', modelo: 'Pro2', consumo: 0.30, coste: 3999, image: 'https://www.raise3d.com/cdn/shop/products/Pro2_600x600.png' },
-            { marca: 'Raise3D', modelo: 'E2', consumo: 0.25, coste: 3499, image: 'https://www.raise3d.com/cdn/shop/products/E2_600x600.png' },
-            { marca: 'Bambu Lab', modelo: 'X1 Carbon', consumo: 0.28, coste: 1199, image: 'https://www.bambulab.com/cdn/shop/products/X1-Carbon_600x600.png' },
-            { marca: 'Bambu Lab', modelo: 'P1P', consumo: 0.20, coste: 699, image: 'https://www.bambulab.com/cdn/shop/products/P1P_600x600.png' },
-            { marca: 'Bambu Lab', modelo: 'A1 Mini', consumo: 0.15, coste: 299, image: 'https://www.bambulab.com/cdn/shop/products/A1-Mini_600x600.png' },
-            { marca: 'Bambu Lab', modelo: 'X1', consumo: 0.25, coste: 999, image: 'https://www.bambulab.com/cdn/shop/products/X1_600x600.png' }
+            { marca: 'Prusa',      modelo: 'MK3S+',         consumo: 0.12, coste: 799,  image: 'https://www.prusa3d.com/content/images/product/mk3splus_kit_600x600.png' },
+            { marca: 'Prusa',      modelo: 'Mini+',          consumo: 0.08, coste: 459,  image: 'https://www.prusa3d.com/content/images/product/mini_plus_600x600.png' },
+            { marca: 'Prusa',      modelo: 'XL',             consumo: 0.25, coste: 1999, image: 'https://www.prusa3d.com/content/images/product/xl_600x600.png' },
+            { marca: 'Creality',   modelo: 'Ender 3 V2',     consumo: 0.15, coste: 229,  image: 'https://cdn.shopify.com/s/files/1/0557/7973/1860/products/Ender3V2_600x.png' },
+            { marca: 'Creality',   modelo: 'CR-10 V3',       consumo: 0.20, coste: 499,  image: 'https://www.creality.com/cdn/shop/products/CR-10_V3_600x600.png' },
+            { marca: 'Creality',   modelo: 'Ender 3 S1',     consumo: 0.18, coste: 349,  image: 'https://www.creality.com/cdn/shop/products/Ender-3S1_600x600.png' },
+            { marca: 'Creality',   modelo: 'K1',             consumo: 0.22, coste: 559,  image: 'https://www.creality.com/cdn/shop/products/K1_600x600.png' },
+            { marca: 'Creality',   modelo: 'K1 Max',         consumo: 0.30, coste: 799,  image: 'https://www.creality.com/cdn/shop/products/K1_Max_600x600.png' },
+            { marca: 'Anycubic',   modelo: 'Photon Mono X',  consumo: 0.20, coste: 499,  image: 'https://www.anycubic.com/cdn/shop/products/Photon-Mono-X_600x600.png' },
+            { marca: 'Anycubic',   modelo: 'Vyper',          consumo: 0.17, coste: 369,  image: 'https://www.anycubic.com/cdn/shop/products/Vyper_600x600.png' },
+            { marca: 'Anycubic',   modelo: 'Kobra 2 Pro',    consumo: 0.19, coste: 429,  image: 'https://www.anycubic.com/cdn/shop/products/Kobra-2-Pro_600x600.png' },
+            { marca: 'Elegoo',     modelo: 'Mars 3',         consumo: 0.18, coste: 299,  image: 'https://www.elegoo.com/cdn/shop/products/Mars-3_600x600.png' },
+            { marca: 'Elegoo',     modelo: 'Neptune 3 Pro',  consumo: 0.16, coste: 329,  image: 'https://www.elegoo.com/cdn/shop/products/Neptune-3-Pro_600x600.png' },
+            { marca: 'Ultimaker',  modelo: 'S5',             consumo: 0.35, coste: 5999, image: 'https://www.ultimaker.com/cdn/shop/products/S5_600x600.png' },
+            { marca: 'Ultimaker',  modelo: 'S3',             consumo: 0.30, coste: 3999, image: 'https://www.ultimaker.com/cdn/shop/products/S3_600x600.png' },
+            { marca: 'Formlabs',   modelo: 'Form 3',         consumo: 0.25, coste: 3499, image: 'https://www.formlabs.com/cdn/shop/products/Form-3_600x600.png' },
+            { marca: 'Formlabs',   modelo: 'Form 3L',        consumo: 0.35, coste: 9999, image: 'https://www.formlabs.com/cdn/shop/products/Form-3L_600x600.png' },
+            { marca: 'Artillery',  modelo: 'Genius Pro',     consumo: 0.16, coste: 299,  image: 'https://www.artillery3d.com/cdn/shop/products/Genius-Pro_600x600.png' },
+            { marca: 'Artillery',  modelo: 'Sidewinder X2',  consumo: 0.22, coste: 399,  image: 'https://www.artillery3d.com/cdn/shop/products/Sidewinder-X2_600x600.png' },
+            { marca: 'Raise3D',    modelo: 'Pro2',           consumo: 0.30, coste: 3999, image: 'https://www.raise3d.com/cdn/shop/products/Pro2_600x600.png' },
+            { marca: 'Raise3D',    modelo: 'E2',             consumo: 0.25, coste: 3499, image: 'https://www.raise3d.com/cdn/shop/products/E2_600x600.png' },
+            { marca: 'Bambu Lab',  modelo: 'X1 Carbon',      consumo: 0.28, coste: 1199, image: 'https://www.bambulab.com/cdn/shop/products/X1-Carbon_600x600.png' },
+            { marca: 'Bambu Lab',  modelo: 'P1P',            consumo: 0.20, coste: 699,  image: 'https://www.bambulab.com/cdn/shop/products/P1P_600x600.png' },
+            { marca: 'Bambu Lab',  modelo: 'A1 Mini',        consumo: 0.15, coste: 299,  image: 'https://www.bambulab.com/cdn/shop/products/A1-Mini_600x600.png' },
+            { marca: 'Bambu Lab',  modelo: 'X1',             consumo: 0.25, coste: 999,  image: 'https://www.bambulab.com/cdn/shop/products/X1_600x600.png' },
         ];
 
+        // ── State ────────────────────────────────────────────
         let selectedPrinter = null;
-        let printTimeUnit = 'horas';
-        let lastSalePrice = 0;
+        let printTimeUnit   = 'horas';
+        let lastSalePrice   = 0;
 
-        const printerSearchInput = document.getElementById('printerSearch');
-        const printerDropdown = document.getElementById('printerDropdown');
-        const filamentCostInput = document.getElementById('filamentCostPerKg');
-        const filamentGramsInput = document.getElementById('filamentConsumedGrams');
-        const printTimeInput = document.getElementById('printTime');
-        const timeUnitBtn = document.getElementById('timeUnitBtn');
-        const selectedRateSelect = document.getElementById('selectedRate');
-        const marginProfitSlider = document.getElementById('marginProfit');
-        const marginProfitValue = document.getElementById('marginProfitValue');
-        const calculateBtn = document.getElementById('calculateBtn');
-        const roundBtn = document.getElementById('roundBtn');
-        const filamentCostResult = document.getElementById('filamentCostResult');
-        const electricityCostResult = document.getElementById('electricityCostResult');
-        const printerCostResult = document.getElementById('printerCostResult');
-        const totalCostResult = document.getElementById('totalCostResult');
-        const salePriceResult = document.getElementById('salePriceResult');
-        const selectedPrinterInfo = document.getElementById('selectedPrinterInfo');
-        const printerImageContainer = document.getElementById('printerImageContainer');
+        // ── Elements ─────────────────────────────────────────
+        const $ = id => document.getElementById(id);
 
-        function filterPrinters(searchText) {
-            if (!searchText) return [];
-            return printerDatabase.filter(printer => 
-                `${printer.marca} ${printer.modelo}`.toLowerCase().includes(searchText.toLowerCase())
-            );
+        const printerSearch      = $('printerSearch');
+        const printerDropdown    = $('printerDropdown');
+        const printerChip        = $('printerChip');
+        const filamentCostInput  = $('filamentCostPerKg');
+        const filamentGramsInput = $('filamentConsumedGrams');
+        const printTimeInput     = $('printTime');
+        const timeUnitBtn        = $('timeUnitBtn');
+        const rateSelect         = $('selectedRate');
+        const customRateInput    = $('customRate');
+        const marginSlider       = $('marginProfit');
+        const marginValue        = $('marginProfitValue');
+
+        const resBadge           = $('resBadge');
+        const previewImgWrap     = $('previewImgWrap');
+        const previewName        = $('previewName');
+        const previewMeta        = $('previewMeta');
+
+        const filamentRes        = $('filamentCostResult');
+        const electricityRes     = $('electricityCostResult');
+        const printerRes         = $('printerCostResult');
+        const totalRes           = $('totalCostResult');
+        const saleRes            = $('salePriceResult');
+
+        const barF = $('barF');
+        const barE = $('barE');
+        const barP = $('barP');
+
+        // ── Toast ────────────────────────────────────────────
+        function toast(msg, type = 'info') {
+            const el = document.createElement('div');
+            el.className = `toast toast-${type}`;
+            el.textContent = msg;
+            $('toastContainer').appendChild(el);
+            requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('show')));
+            setTimeout(() => {
+                el.classList.remove('show');
+                setTimeout(() => el.remove(), 300);
+            }, 3200);
         }
 
-        function showPrinterDropdown(printers) {
+        // ── Printer search ───────────────────────────────────
+        printerSearch.addEventListener('input', e => {
+            const q = e.target.value.trim();
+            if (!q) { printerDropdown.style.display = 'none'; return; }
+            const hits = printerDatabase.filter(p =>
+                `${p.marca} ${p.modelo}`.toLowerCase().includes(q.toLowerCase())
+            );
+            renderDropdown(hits);
+        });
+
+        function renderDropdown(printers) {
             printerDropdown.innerHTML = '';
-            printers.forEach(printer => {
+            if (!printers.length) { printerDropdown.style.display = 'none'; return; }
+
+            printers.forEach(p => {
                 const item = document.createElement('div');
-                item.className = 'dropdown-item';
+                item.className = 'dd-item';
+
                 const img = document.createElement('img');
-                img.src = printer.image;
-                img.alt = `${printer.marca} ${printer.modelo}`;
-                const text = document.createElement('span');
-                text.textContent = `${printer.marca} ${printer.modelo} - ${printer.consumo} kW (${printer.coste}€)`;
+                img.src = p.image;
+                img.alt = `${p.marca} ${p.modelo}`;
+                img.onerror = () => img.remove();
+
+                const info = document.createElement('div');
+                info.innerHTML = `<div class="dd-item-name">${p.marca} ${p.modelo}</div>
+                                  <div class="dd-item-meta">${p.consumo} kW · ${p.coste.toLocaleString('es-ES')} €</div>`;
+
                 item.appendChild(img);
-                item.appendChild(text);
-                item.addEventListener('click', () => {
-                    selectedPrinter = printer;
-                    printerSearchInput.value = '';
-                    printerDropdown.style.display = 'none';
-                    selectedPrinterInfo.textContent = `${printer.marca} ${printer.modelo} (${printer.coste}€)`;
-                    selectedPrinterInfo.className = '';
-                    updatePrinterImage(printer.image);
-                    validateField(printerSearchInput);
-                });
+                item.appendChild(info);
+                item.addEventListener('click', () => selectPrinter(p));
                 printerDropdown.appendChild(item);
             });
-            printerDropdown.style.display = printers.length > 0 ? 'block' : 'none';
+            printerDropdown.style.display = 'block';
         }
 
-        function updatePrinterImage(imageUrl) {
-            printerImageContainer.innerHTML = '';
-            if (imageUrl) {
-                const img = document.createElement('img');
-                img.src = imageUrl;
-                img.alt = 'Impresora seleccionada';
-                img.className = 'printer-image';
-                printerImageContainer.appendChild(img);
-            }
+        function selectPrinter(p) {
+            selectedPrinter = p;
+            printerSearch.value = '';
+            printerDropdown.style.display = 'none';
+
+            // Chip
+            printerChip.style.display = 'inline-flex';
+            printerChip.className = 'printer-chip';
+            printerChip.innerHTML =
+                `<span>🖨 ${p.marca} ${p.modelo}</span>` +
+                `<button class="chip-clear" title="Cambiar impresora" onclick="clearPrinter()">×</button>`;
+
+            // Results badge
+            resBadge.textContent = `${p.marca} ${p.modelo}`;
+            resBadge.className = 'res-badge active';
+
+            // Preview card
+            previewName.textContent = `${p.marca} ${p.modelo}`;
+            previewMeta.textContent = `${p.consumo} kW · ${p.coste.toLocaleString('es-ES')} €`;
+
+            const img = document.createElement('img');
+            img.src = p.image;
+            img.alt = p.modelo;
+            img.onerror = () => {
+                previewImgWrap.innerHTML = '<span class="preview-placeholder">🖨</span>';
+            };
+            previewImgWrap.innerHTML = '';
+            previewImgWrap.appendChild(img);
+
+            clearErr('printerGroup');
         }
 
-        function toggleTimeUnit() {
-            printTimeUnit = printTimeUnit === 'horas' ? 'minutos' : 'horas';
-            timeUnitBtn.textContent = printTimeUnit;
+        function clearPrinter() {
+            selectedPrinter = null;
+            printerChip.style.display = 'none';
+            printerChip.innerHTML = '';
+            resBadge.textContent = 'Sin impresora';
+            resBadge.className = 'res-badge';
+            previewImgWrap.innerHTML = '<span class="preview-placeholder">🖨</span>';
+            previewName.textContent = 'Ninguna seleccionada';
+            previewMeta.textContent = 'Selecciona una impresora para comenzar';
         }
 
-        function adjustedPrintTime() {
-            const time = parseFloat(printTimeInput.value) || 0;
-            return printTimeUnit === 'minutos' ? time / 60 : time;
-        }
-
-        function validateField(input) {
-            if (!input.value && input.required) {
-                input.classList.add('error');
-                return false;
-            }
-            input.classList.remove('error');
-            return true;
-        }
-
-        function calculateCosts() {
-            const validPrinter = selectedPrinter !== null;
-            const validFilamentCost = validateField(filamentCostInput);
-            const validFilamentGrams = validateField(filamentGramsInput);
-            const validTime = validateField(printTimeInput);
-            const validRate = validateField(selectedRateSelect);
-
-            if (!validPrinter || !validFilamentCost || !validFilamentGrams || !validTime || !validRate) {
-                alert('Complete todos los campos obligatorios.');
-                return;
-            }
-
-            const filamentCostPerKg = parseFloat(filamentCostInput.value);
-            const filamentConsumedGrams = parseFloat(filamentGramsInput.value);
-            const printTime = adjustedPrintTime();
-            const electricityRate = parseFloat(selectedRateSelect.value);
-            const marginProfit = parseFloat(marginProfitSlider.value);
-
-            const filamentCostCalc = (filamentCostPerKg / 1000) * filamentConsumedGrams;
-            const electricityCostCalc = selectedPrinter.consumo * printTime * electricityRate;
-            const printerCostCalc = selectedPrinter.coste * 0.0025;
-            const totalProductionCost = filamentCostCalc + electricityCostCalc + printerCostCalc;
-            const salePriceCalc = totalProductionCost * (1 + marginProfit / 100);
-
-            lastSalePrice = salePriceCalc;
-
-            animateResult(filamentCostResult, filamentCostCalc.toFixed(2) + '€');
-            animateResult(electricityCostResult, electricityCostCalc.toFixed(2) + '€');
-            animateResult(printerCostResult, printerCostCalc.toFixed(2) + '€');
-            animateResult(totalCostResult, totalProductionCost.toFixed(2) + '€');
-            animateResult(salePriceResult, salePriceCalc.toFixed(2) + '€');
-        }
-
-        function roundSalePrice() {
-            if (lastSalePrice === 0) {
-                alert('Primero calcula los costes antes de redondear.');
-                return;
-            }
-            const roundedPrice = Math.round(lastSalePrice);
-            animateResult(salePriceResult, roundedPrice.toFixed(2) + '€');
-        }
-
-        function animateResult(element, value) {
-            element.textContent = value;
-            element.classList.add('updated');
-            setTimeout(() => element.classList.remove('updated'), 500);
-        }
-
-        marginProfitSlider.addEventListener('input', () => {
-            marginProfitValue.textContent = `${marginProfitSlider.value}%`;
-        });
-
-        printerSearchInput.addEventListener('input', (e) => {
-            showPrinterDropdown(filterPrinters(e.target.value));
-        });
-
-        document.addEventListener('click', (e) => {
-            if (!printerSearchInput.contains(e.target) && !printerDropdown.contains(e.target)) {
+        document.addEventListener('click', e => {
+            if (!printerSearch.contains(e.target) && !printerDropdown.contains(e.target)) {
                 printerDropdown.style.display = 'none';
             }
         });
 
-        timeUnitBtn.addEventListener('click', toggleTimeUnit);
-        calculateBtn.addEventListener('click', calculateCosts);
-        roundBtn.addEventListener('click', roundSalePrice);
-
-        [filamentCostInput, filamentGramsInput, printTimeInput, selectedRateSelect].forEach(input => {
-            input.required = true;
-            input.addEventListener('input', () => validateField(input));
+        // ── Time unit toggle ─────────────────────────────────
+        timeUnitBtn.addEventListener('click', () => {
+            printTimeUnit = printTimeUnit === 'horas' ? 'minutos' : 'horas';
+            timeUnitBtn.textContent = printTimeUnit;
         });
+
+        // ── Custom rate ──────────────────────────────────────
+        rateSelect.addEventListener('change', () => {
+            customRateInput.style.display = rateSelect.value === 'custom' ? 'block' : 'none';
+            clearErr('rateGroup');
+        });
+
+        // ── Margin slider ────────────────────────────────────
+        marginSlider.addEventListener('input', () => {
+            marginValue.textContent = `${marginSlider.value}%`;
+        });
+
+        // ── Validation helpers ───────────────────────────────
+        function setErr(groupId)  { $(groupId).classList.add('has-error'); }
+        function clearErr(groupId) { $(groupId).classList.remove('has-error'); }
+
+        function getRate() {
+            if (rateSelect.value === 'custom') return parseFloat(customRateInput.value) || null;
+            return parseFloat(rateSelect.value) || null;
+        }
+
+        function validateAll() {
+            let ok = true;
+            if (!selectedPrinter)                              { setErr('printerGroup');      ok = false; } else clearErr('printerGroup');
+            if (!isPositive(filamentCostInput.value))          { setErr('filamentCostGroup'); ok = false; } else clearErr('filamentCostGroup');
+            if (!isPositive(filamentGramsInput.value))         { setErr('filamentGramsGroup');ok = false; } else clearErr('filamentGramsGroup');
+            if (!isPositive(printTimeInput.value))             { setErr('printTimeGroup');    ok = false; } else clearErr('printTimeGroup');
+            if (getRate() === null || isNaN(getRate()))        { setErr('rateGroup');         ok = false; } else clearErr('rateGroup');
+            return ok;
+        }
+
+        function isPositive(val) {
+            const n = parseFloat(val);
+            return val !== '' && !isNaN(n) && n > 0;
+        }
+
+        // ── Calculate ────────────────────────────────────────
+        function calculateCosts() {
+            if (!validateAll()) {
+                toast('Completa todos los campos obligatorios.', 'error');
+                return;
+            }
+
+            const filamentCostPerKg = parseFloat(filamentCostInput.value);
+            const filamentGrams     = parseFloat(filamentGramsInput.value);
+            const rawTime           = parseFloat(printTimeInput.value);
+            const hours             = printTimeUnit === 'minutos' ? rawTime / 60 : rawTime;
+            const rate              = getRate();
+            const margin            = parseFloat(marginSlider.value);
+
+            const fCost   = (filamentCostPerKg / 1000) * filamentGrams;
+            const eCost   = selectedPrinter.consumo * hours * rate;
+            const pCost   = selectedPrinter.coste * 0.0025;
+            const total   = fCost + eCost + pCost;
+            const salePrice = total * (1 + margin / 100);
+
+            lastSalePrice = salePrice;
+
+            animateVal(filamentRes,    fmt(fCost));
+            animateVal(electricityRes, fmt(eCost));
+            animateVal(printerRes,     fmt(pCost));
+            animateVal(totalRes,       fmt(total));
+            animateVal(saleRes,        fmt(salePrice));
+
+            if (total > 0) {
+                barF.style.width = `${(fCost / total * 100).toFixed(1)}%`;
+                barE.style.width = `${(eCost / total * 100).toFixed(1)}%`;
+                barP.style.width = `${(pCost / total * 100).toFixed(1)}%`;
+            }
+
+            saveState();
+            toast('Costes calculados.', 'success');
+        }
+
+        function roundPrice() {
+            if (lastSalePrice === 0) { toast('Calcula los costes primero.', 'info'); return; }
+            lastSalePrice = Math.round(lastSalePrice);
+            animateVal(saleRes, fmt(lastSalePrice));
+            toast('Precio redondeado.', 'success');
+        }
+
+        function resetAll() {
+            filamentCostInput.value  = '';
+            filamentGramsInput.value = '';
+            printTimeInput.value     = '';
+            rateSelect.value         = '';
+            customRateInput.style.display = 'none';
+            customRateInput.value    = '';
+            marginSlider.value       = 30;
+            marginValue.textContent  = '30%';
+            printTimeUnit            = 'horas';
+            timeUnitBtn.textContent  = 'horas';
+            clearPrinter();
+            lastSalePrice = 0;
+
+            [filamentRes, electricityRes, printerRes, totalRes].forEach(el => el.textContent = '0,00 €');
+            saleRes.textContent = '0,00 €';
+            barF.style.width = barE.style.width = barP.style.width = '0%';
+            ['printerGroup','filamentCostGroup','filamentGramsGroup','printTimeGroup','rateGroup'].forEach(clearErr);
+
+            localStorage.removeItem('calc3d');
+            toast('Formulario limpiado.', 'info');
+        }
+
+        // ── Copy ─────────────────────────────────────────────
+        $('copyBtn').addEventListener('click', () => {
+            const txt = saleRes.textContent;
+            navigator.clipboard.writeText(txt)
+                .then(() => toast(`Copiado: ${txt}`, 'success'))
+                .catch(() => toast('No se pudo copiar.', 'error'));
+        });
+
+        // ── Helpers ──────────────────────────────────────────
+        function fmt(n) {
+            return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+        }
+
+        function animateVal(el, val) {
+            el.textContent = val;
+            el.classList.add('updated');
+            setTimeout(() => el.classList.remove('updated'), 400);
+        }
+
+        // ── LocalStorage ─────────────────────────────────────
+        function saveState() {
+            localStorage.setItem('calc3d', JSON.stringify({
+                filamentCost:  filamentCostInput.value,
+                filamentGrams: filamentGramsInput.value,
+                printTime:     printTimeInput.value,
+                printTimeUnit,
+                rate:          rateSelect.value,
+                customRate:    customRateInput.value,
+                margin:        marginSlider.value,
+                printer:       selectedPrinter ? `${selectedPrinter.marca} ${selectedPrinter.modelo}` : null,
+            }));
+        }
+
+        function loadState() {
+            try {
+                const s = JSON.parse(localStorage.getItem('calc3d'));
+                if (!s) return;
+                filamentCostInput.value  = s.filamentCost  || '';
+                filamentGramsInput.value = s.filamentGrams || '';
+                printTimeInput.value     = s.printTime     || '';
+                printTimeUnit            = s.printTimeUnit || 'horas';
+                timeUnitBtn.textContent  = printTimeUnit;
+                rateSelect.value         = s.rate          || '';
+                if (s.rate === 'custom') {
+                    customRateInput.style.display = 'block';
+                    customRateInput.value = s.customRate || '';
+                }
+                marginSlider.value       = s.margin        || 30;
+                marginValue.textContent  = `${marginSlider.value}%`;
+                if (s.printer) {
+                    const p = printerDatabase.find(x => `${x.marca} ${x.modelo}` === s.printer);
+                    if (p) selectPrinter(p);
+                }
+            } catch (_) { /* invalid state */ }
+        }
+
+        // ── Keyboard shortcut ────────────────────────────────
+        document.addEventListener('keydown', e => {
+            if (e.key !== 'Enter') return;
+            const active = document.activeElement;
+            const inputIds = ['filamentCostPerKg','filamentConsumedGrams','printTime','customRate'];
+            if (inputIds.includes(active.id)) {
+                e.preventDefault();
+                calculateCosts();
+            }
+        });
+
+        // ── Wire events ──────────────────────────────────────
+        $('calculateBtn').addEventListener('click', calculateCosts);
+        $('roundBtn').addEventListener('click', roundPrice);
+        $('resetBtn').addEventListener('click', resetAll);
+
+        [
+            [filamentCostInput,  'filamentCostGroup'],
+            [filamentGramsInput, 'filamentGramsGroup'],
+            [printTimeInput,     'printTimeGroup'],
+        ].forEach(([el, g]) => el.addEventListener('input', () => clearErr(g)));
+
+        // ── Init ─────────────────────────────────────────────
+        loadState();
     </script>
 </body>
 </html>
